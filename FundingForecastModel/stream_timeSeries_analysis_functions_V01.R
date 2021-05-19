@@ -1,0 +1,548 @@
+
+##This script uses all the functions used by the combined ACSS and USBE time series extraction file
+##
+##
+##
+## Author : Segun Bewaji
+## Creation Date : 28 Jun 2017
+## Modified : Segun Bewaji
+## Modifications Made: 
+##        1)  
+##           
+##        2) 
+##        3)  
+##           
+##        4)  
+##           
+##        5) 
+##        6)  
+## Modified :  
+## Modifications Made:
+##        7) 
+##        8) 
+##           
+##        9)  
+##           
+##       10) 
+##
+##
+##
+##
+##
+## 
+## $Id$
+
+
+
+
+
+##<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<DECLARE METHODS/FUNCTIONS>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+removeTSItemFromList <- function(inputList, minObserv){
+}
+
+##<<<Specify plot settings for the LATTICE plots>>>
+graphSettings <- list(#superpose.line = list(lty = 1:3, lwd = 2, alpha = 1),
+  superpose.symbol = list(pch = 1:4, alpha = 0.7)) ;
+
+
+createTSPlots <- function(inputTSList, measUnit, measUnitType, tsFreq, sYr,eYr){
+  #declare local variables
+  tmpPlot <- NULL;
+  tmpPlotList <- NULL;
+  measurementUnitTypeString <- NULL;
+  measurementUnitString <- NULL;
+  tsFreqString <- NULL;
+  counter <- 1;
+  
+  #set the value of the measurment unit as reported in the chart
+  if(measUnit==1000000){
+    measurementUnitString = "(millions)";
+  }else if(measUnit==1000){
+    measurementUnitString = "(thousands)";
+  }else if(measUnit==1){
+    measurementUnitString = "(amount)";
+  }else{
+    print("wrong measurment unit provided: Please check and re-enter")
+  }
+  
+  #set values for file naming, y-axis labels and main plot title
+  if(measUnitType %in% c("volume","Volume","Vol","VOLUME")){
+    measurementUnitTypeString = "Transactions Volume";
+  }
+  
+  #set the value of the x-axis label
+  #if monthly
+  if(dataFrequency == "monthly"){
+    tsFreqString <- "Year and Month";
+    #if quarterly  
+  }else if(dataFrequency == "quarterly"){
+    tsFreqString <- "Year and Quarter";
+    #if annual 
+  }else if(dataFrequency == "annual"){
+    extractedACSSUSBEFITimeSeriesLoadPath <- 
+      tsFreqString <- "Year";
+    #if daily   
+  }else if(dataFrequency == "daily"){
+    extractedACSSUSBEFITimeSeriesLoadPath <- 
+      tsFreqString <- "date";
+  }
+  
+  while(counter <= length(inputTSList)){
+    #create the lattice plot
+    tmpPlot <- xyplot.ts((inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$TimeSeries/measUnit), 
+                         screens = list(inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$Stream),
+                         superpose = TRUE, xlim = c(sYr:eYr+2),par.settings = graphSettings, 
+                         scales=list(cex=0.7, tck=c(1,0), y=list(tick.number=10, rot=360), x=list(tick.number=15)), 
+                         xlab = paste(tsFreqString), ylab =paste(measurementUnitTypeString, measurementUnitString, sep = " "));
+    
+    
+    #add the lattice plot to the list of plots  + xlim(c(xAxisMin,xAxisMax)
+    #This has been made to reference the FI name as a primary key to prevent having to loop through every element of the list
+    #to pull up a chart for a specific FI later on
+    tmpPlotList[[counter]] <- list(Stream=inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$Stream, TimeSeriesChart=tmpPlot);
+    counter <- counter+1;
+  }
+  
+  return(tmpPlotList);
+}
+
+
+##This function creates and stores plots of the seasonally adjusted volume/value timeseries
+createSeasonallyAdjustedTSPlots <- function(inputTSList, measUnit, measUnitType, tsFreq, sYr,eYr, savePath){
+  #declare local variables
+  tmpPlot <- NULL;
+  tmpPlotList <- NULL;
+  measurementUnitTypeString <- NULL;
+  measurementUnitString <- NULL;
+  mainTitleLeadingString <- NULL;
+  tsFreqString <- NULL;
+  counter <- 1;#declare and initialise the reference counter
+  
+  #set the value of the measurment unit as reported in the chart
+  if(measUnit==1000000){
+    measurementUnitString = "(millions)";
+  }else if(measUnit==1000){
+    measurementUnitString = "(thousands)";
+  }else if(measUnit==1){
+    measurementUnitString = "(amount)";
+  }else{
+    print("wrong measurment unit provided: Please check and re-enter")
+  }
+  
+  #set values for file naming, y-axis labels and main plot title
+  if(measUnitType %in% c("volume","Volume","Vol","VOLUME")){
+    measurementUnitTypeString = "Transactions Volume";
+    measurementUnitTypeSaveString = "-Stream Transactions Volume Seasonally Adjusted.png";
+    mainTitleLeadingString = "ACSS and USBE Transactions Volume for Stream";
+  } else if(measUnitType %in% c("value","Value","Val","VALUE")){
+    measurementUnitTypeString = "Transactions Value";
+    measurementUnitTypeSaveString = "-Stream Transactions Value Seasonally Adjusted.png";
+    mainTitleLeadingString = "ACSS and USBE Transactions Value for Stream";
+  }
+  
+  #set the value of the x-axis lable
+  #if monthly
+  if(dataFrequency == "monthly"){
+    tsFreqString <- "Year and Month";
+    #if quarterly  
+  }else if(dataFrequency == "quarterly"){
+    tsFreqString <- "Year and Quarter";
+    #if annual 
+  }else if(dataFrequency == "annual"){
+    extractedACSSUSBEFITimeSeriesLoadPath <- 
+      tsFreqString <- "Year";
+    #if daily   
+  }else if(dataFrequency == "daily"){
+    extractedACSSUSBEFITimeSeriesLoadPath <- 
+      tsFreqString <- "date";
+  }
+  
+  #loop through each element of the input list of time series data
+  while(counter <= length(inputTSList)){
+    #create the lattice plot
+    testSTL <- stl((inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$TimeSeries/measUnit),s.window="periodic");#recalling stl is not efficient 
+    #since it is used to generate the forecasts and the output store at that point 
+    seasAdjTestSTL <- seasadj(testSTL);
+    #add the seasonally adjusted sereis to the chart
+    #1: start recording chart panel window
+    #2: plot the chart
+    #3: print the chart
+    #4: bring the panel into focus
+    #5: add the seasonally adjusted plot to the panel
+    #6: take the panel out of focus
+    #7: stop recording an save
+    fileLocation <- paste(savePath, inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$Stream, measurementUnitTypeSaveString, sep="");
+    png(fileLocation);
+    tmpPlot <- xyplot((inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$TimeSeries/measUnit), 
+                      #screens = list(inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$Stream),
+                      superpose = TRUE, xlim = extendrange(sYr:eYr),par.settings = graphSettings, 
+                      main=paste(mainTitleLeadingString, inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$Stream),
+                      scales=list(cex=0.7, tck=c(1,0), y=list(tick.number=10, rot=360), x=list(tick.number=15)), 
+                      xlab = paste(tsFreqString), ylab =paste(measurementUnitTypeString, measurementUnitString, sep = ""));
+    print(tmpPlot);#printing into the plots display window is required so as to allow the storing of the plot object
+    trellis.focus("panel", 1, 1);
+    panel.lines(seasAdjTestSTL,col="red",ylab=paste("Seasonally Adjusted", measurementUnitTypeString, measurementUnitString, sep = ""));
+    trellis.unfocus();
+    dev.off();#captures the chart in the plots display window and then clears the window
+    
+    #add the lattice plot to the list of plots
+    #This has been made to reference the FI name as a primary key to prevent having to loop through every element of the list
+    #to pull up a chart for a specific FI later on
+    tmpPlotList[[counter]] <- list(Stream=inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$Stream, SeasonallyAdjustedChart=tmpPlot);
+    counter <- counter+1;
+    
+  }
+  return(tmpPlotList);
+}
+
+
+##This function is used to generate a list of plots of decomposed time series from the provided list of raw time series objects
+createTSDecompositionPlots <- function(inputTSList, measUnit, measUnitType, tsFreq, sYr,eYr, savePath){
+  #declare local variables
+  tmpPlot <- NULL;
+  tmpPlotList <- NULL;
+  measurementUnitTypeString <- NULL;
+  measurementUnitString <- NULL;
+  tsFreqString <- NULL;
+  counter <- 1;
+  fileLocation <- NULL;
+  
+  #set the value of the measurment unit as reported in the chart
+  if(measUnit==1000000){
+    measurementUnitString = "(millions)";
+  }else if(measUnit==1000){
+    measurementUnitString = "(thousands)";
+  }else if(measUnit==1){
+    measurementUnitString = "(amount)";
+  }else{
+    print("wrong measurment unit provided: Please check and re-enter")
+  }
+  
+  #set values for file naming, y-axis labels and main plot title
+  if(measUnitType %in% c("volume","Volume","Vol","VOLUME")){
+    measurementUnitTypeString = "Transactions Volume";
+    measurementUnitTypeSaveString = "TransactionsVolumeTSDecomposition.png";
+  } else if(measUnitType %in% c("value","Value","Val","VALUE")){
+    measurementUnitTypeString = "Transactions Value";
+    measurementUnitTypeSaveString = "TransactionsValueTSDecomposition.png";
+  }
+  
+  #set the value of the x-axis lable
+  #if monthly
+  if(dataFrequency == "monthly"){
+    tsFreqString <- "Year and Month";
+    #if quarterly  
+  }else if(dataFrequency == "quarterly"){
+    tsFreqString <- "Year and Quarter";
+    #if annual 
+  }else if(dataFrequency == "annual"){
+    extractedACSSUSBEFITimeSeriesLoadPath <- 
+      tsFreqString <- "Year";
+    #if daily   
+  }else if(dataFrequency == "daily"){
+    extractedACSSUSBEFITimeSeriesLoadPath <- 
+      tsFreqString <- "date";
+  }
+  
+  while(counter <= length(inputTSList)){
+    
+    fileLocation <- paste(savePath, inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$Stream, measurementUnitTypeSaveString, sep="");
+    png(fileLocation);
+    #create the lattice plot
+    tmpPlot <- xyplot(stl((inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$TimeSeries/measUnit),s.window="periodic", robust=TRUE), 
+                      main= paste("Time Series Decomposition for ",list(inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$Stream)), 
+                      scales=list(cex=0.7, tck=c(1,0), y=list(tick.number=10, rot=360), x=list(tick.number=15)),
+                      xlab = paste(tsFreqString), ylab =paste(measurementUnitTypeString, measurementUnitString, sep = " "));
+    #add the lattice plot to the list of plots  + xlim(c(xAxisMin,xAxisMax)
+    #This has been made to reference the FI name as a primary key to prevent having to loop through every element of the list
+    #to pull up a chart for a specific FI later on
+    tmpPlotList[[counter]] <- 
+      list(Stream=inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$Stream, TimeSeriesDecompositionChart=tmpPlot);
+    print(tmpPlot);#printing into the plots display window is required so as to allow the storing of the plot object
+    dev.off();#captures the chart in the plots display window and then clears the window
+    
+    counter <- counter+1;
+  }
+  
+  return(tmpPlotList); 
+}
+
+##This function plots the PACF (partial autocorreleation function) of the supplied time series data and returns a list of ACF plots
+createTSPACFPlots <- function(inputTSList, measUnit){
+  #declare local variables
+  tmpPlot <- NULL;
+  tmpPlotList <- NULL;
+  counter <- 1;
+  
+  while(counter <= length(inputTSList)){
+    #create the PACF plot
+    tmpPlot <- pacf((inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$TimeSeries/measUnit),
+                    main= paste("PACF of ", list(inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$Stream)));
+    #add the lattice plot to the list of plots
+    #This has been made to reference the FI name as a primary key to prevent having to loop through every element of the list
+    #to pull up a chart for a specific FI later on
+    tmpPlotList[[counter]] <- list(Stream=inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$Stream, TimeSeriesPACFChart=tmpPlot);
+    counter <- counter + 1;
+  }
+  return(tmpPlotList) 
+}
+
+##This function plots the ACF (autocorreleation function) of the supplied time series data and returns a list of ACF plots
+createTSACFPlots <- function(inputTSList, measUnit){
+  
+  tmpPlot <- NULL;
+  tmpPlotList <- NULL;
+  counter <- 1;
+  
+  while(counter <= length(inputTSList)){
+    #create the ACF plot
+    #NOTE: The "Acf" uses the forecast package not the default "stats" package which is "acf"
+    tmpPlot <- Acf((inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$TimeSeries/measUnit),
+                   main= paste("ACF of ", list(inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$Stream)));
+    #add the lattice plot to the list of plots
+    #This has been made to reference the FI name as a primary key to prevent having to loop through every element of the list
+    #to pull up a chart for a specific FI later on
+    tmpPlotList[[counter]] <- list(Stream=inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$Stream, TimeSeriesACFChart=tmpPlot);
+    counter <-  counter + 1;
+  }
+  return(tmpPlotList) 
+}
+
+
+##This function is used to generate a list of decomposed time series from the provided list of raw time series objects
+createTSDecomposition <- function(inputTSList, measUnit){
+  #declare local variables
+  tsDecom <- NULL;
+  tsDecomList <- NULL;
+  counter <- 1;
+  
+  
+  while(counter <= length(inputTSList)){
+    #create the TS decompositions
+    tsDecom <- stl((inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$TimeSeries/measUnit),s.window="periodic", robust=TRUE);
+    
+    #add the lattice plot to the list of plots
+    tsDecomList[[counter]] <- list(Stream=inputTSList[counter]$SingleFIACSSStreamTimeSeriesList$Stream, TimeSeriesDecomposition=tsDecom);
+    counter <- counter+1;
+  }
+  return(tsDecomList); 
+}
+
+
+##This is the function that computes the forecasts. The estimation method used is the un-seasonal ARIMA(p,d,q)
+generateARIMAForecasts <- function(inputTSDecompList, dummyVector, inputArimaOrder, fcstHrzn, cnst, drft, confLev){
+  #declare local variables
+  tmpSTL <- NULL;
+  fcasting <- NULL;
+  tsfcastList <- NULL;
+  counter <- 1;
+  #print("entering while loop");
+  #print(inputTSDecompList);
+  #print(dummyVector);
+  while(counter <= length(inputTSDecompList)){
+    #select the TS decompositions
+    tmpSTL <- inputTSDecompList[[counter]]$TimeSeriesDecomposition;
+    
+    #print(tmpSTL);
+    print("entering if constant and drift are true statement");
+    #add the lattice plot to the list of plots
+    if(cnst == TRUE & drft == TRUE){
+      #fcasting <- forecast(forecastFunctionDriftConstant(tmpSTL, inputArimaOrder, fcstHrzn));
+      
+      fcasting <- forecast(tmpSTL, h=fcstHrzn, 
+                           forecastfunction=function(x,h,level, ...){
+                             fit <- Arima(x, xreg=dummyVector, order=inputArimaOrder, include.constant = TRUE, include.drift = TRUE) 
+                             #note including the constant has no impact with the drift included
+                             #with just the constant the forecasts are far too low
+                             #with drift the forecasts are similar to previous monthly/annual but with wider bands
+                             return(forecast(fit, h=fcstHrzn,level=confLev,xreg=dummyVector,...))});
+    }
+    fcastCoefs <- fcasting$model$coef;
+    fcstValues <- fcasting;
+    fcstErrors <- residuals(fcasting);
+    bjTest <- Box.test(fcstErrors, lag=16, fitdf=4, type="Ljung-Box");
+    fcastSummary <- summary(fcasting);
+    
+    
+    print("adding the forecast results to the forecast list");
+    #add the forecast results to the forecast list
+    tsfcastList[[counter]] <- list(Stream=inputTSDecompList[[counter]]$Stream, 
+                                   ForecastCoefficients=fcastCoefs,
+                                   ForecastedSeries=fcstValues,
+                                   ForecastErrors=fcstErrors,
+                                   ForecastSummary=fcastSummary,
+                                   BoxLjungTest=bjTest);
+    counter <- counter+1;
+  }
+  return(tsfcastList); 
+}
+
+##this function is used to export the point forecasts and confidence intervals into an excel file by FI
+exportListOfForecastsToExcel <- function(inputForecastsList, measUnitType, savePath){
+  #declare local variables
+  counter = 1;
+  dtList <- NULL;
+  fileLocation <- NULL;
+  
+  #set values for file naming, y-axis labels and main plot title
+  if(measUnitType %in% c("volume","Volume","Vol","VOLUME")){
+    measurementUnitTypeString = "TransactionsVolumeForecast.xlsx";
+  } else if(measUnitType %in% c("value","Value","Val","VALUE")){
+    measurementUnitTypeString = "TransactionsValueForecast.xlsx";
+  }
+  
+  while(counter<=length(inputForecastsList)){
+    dtList[[counter]] <- as.data.table(inputForecastsList[[counter]]$ForecastedSeries);
+    fileLocation <- paste(savePath, inputForecastsList[[counter]]$Stream, measurementUnitTypeString, sep="");
+    write.xlsx2(dtList[[counter]], file = fileLocation);
+    #assign(paste(savePath,inputForecastsList[[counter]]$Stream,measurementUnitTypeString,sep=""), (dtList[[counter]]));
+    counter <- counter + 1;
+  }
+  
+  return(dtList);
+}
+
+##this function is used to export the Forecast model Coefficients into an excel file by FI
+exportListOfForecastModelCoefficientsToExcel <- function(inputForecastsList, measUnitType, savePath){
+  #declare local variables
+  counter = 1;
+  dtList <- NULL;
+  fileLocation <- NULL;
+  
+  #set values for file naming, y-axis labels and main plot title
+  if(measUnitType %in% c("volume","Volume","Vol","VOLUME")){
+    measurementUnitTypeString = "TransactionsVolumeForecastCoefficients.xlsx";
+  } else if(measUnitType %in% c("value","Value","Val","VALUE")){
+    measurementUnitTypeString = "TransactionsValueForecastCoefficients.xlsx";
+  }
+  
+  while(counter<=length(inputForecastsList)){
+    dtList[[counter]] <- as.data.table(inputForecastsList[[counter]]$ForecastCoefficients);
+    fileLocation <- paste(savePath, inputForecastsList[[counter]]$Stream, measurementUnitTypeString, sep="");
+    write.xlsx2(dtList[[counter]], file = fileLocation);
+    #assign(paste(savePath,inputForecastsList[[counter]]$Stream,measurementUnitTypeString,sep=""), (dtList[[counter]]));
+    counter <- counter + 1;
+  }
+  
+  return(dtList);
+}
+
+
+##This function creates and stores charts of the volume/value forecast results
+##This version of this function is differnt from that in the LVTS and ACSS code because this version takes in the forecast horizen, a range multiplier and
+##sets the y-axis minimum and maximum range 
+exportForecastChartList <- function(inputForecastsList, dataFrequency, measUnit, measUnitType, savePath, fcstEndYear, fcstHorizen, rngMultiplier){
+  #declare local variables
+  counter = 1;
+  ctList <- NULL;
+  cht <- NULL;
+  fileLocation <- NULL;
+  xAxisMin <- NULL;
+  xAxisMax <- fcstEndYear+1;
+  
+  yAxisMin <- NULL;
+  yAxisMax <- NULL;
+  
+  
+  
+  #set the value of the measurment unit as reported in the chart
+  if(measUnit==1000000){
+    measurementUnitString = "(millions)";
+  }else if(measUnit==1000){
+    measurementUnitString = "(thousands)";
+  }else if(measUnit==1){
+    measurementUnitString = "(amount)";
+  }else{
+    print("wrong measurment unit provided: Please check and re-enter")
+  }
+  
+  #set values for file naming, y-axis labels and main plot title
+  if(measUnitType %in% c("volume","Volume","Vol","VOLUME")){
+    measurementUnitTypeString = "Transactions Volume";
+    measurementUnitTypeSaveString = "TransactionsVolumeForecast.png";
+    mainTitleLeadingString = "ACSS and USBE Transactions Volume Forecast for";
+  } else if(measUnitType %in% c("value","Value","Val","VALUE")){
+    measurementUnitTypeString = "Transactions Value";
+    measurementUnitTypeSaveString = "TransactionsValueForecast.png";
+    mainTitleLeadingString = "ACSS and USBE Transactions Value Forecast for";
+  }
+  
+  #set the value of the x-axis lable
+  #if monthly
+  if(dataFrequency == "monthly"){
+    tsFreqString <- "Year and Month";
+    #if quarterly  
+  }else if(dataFrequency == "quarterly"){
+    tsFreqString <- "Year and Quarter";
+    #if annual 
+  }else if(dataFrequency == "annual"){
+    extractedACSSUSBEFITimeSeriesLoadPath <- 
+      tsFreqString <- "Year";
+    #if daily   
+  }else if(dataFrequency == "daily"){
+    extractedACSSUSBEFITimeSeriesLoadPath <- 
+      tsFreqString <- "date";
+  }
+  
+  while(counter<=length(inputForecastsList)){
+    fileLocation <- paste(savePath, inputForecastsList[[counter]]$Stream, measurementUnitTypeSaveString, sep="");
+    #set the minimum value of the x axis
+    xAxisMin <- start(inputForecastsList[[counter]]$ForecastedSeries$x)[1];##start(ts) returns a vector where the first element is the year
+    print(xAxisMin);
+    
+    #set the minimum and maximum limits of the y axis
+    if(min(inputForecastsList[[counter]]$ForecastedSeries$x) > min(inputForecastsList[[counter]]$ForecastedSeries$lower[1:fcstHorizen])){
+      yAxisMin <- min(inputForecastsList[[counter]]$ForecastedSeries$lower[1:fcstHorizen]) - 
+        (1-rngMultiplier)*min(inputForecastsList[[counter]]$ForecastedSeries$lower[1:fcstHorizen]);
+    }else{
+      yAxisMin <- min(inputForecastsList[[counter]]$ForecastedSeries$x) - 
+        (1-rngMultiplier)*min(inputForecastsList[[counter]]$ForecastedSeries$x);
+    }
+    
+    if(max(inputForecastsList[[counter]]$ForecastedSeries$x) < max(inputForecastsList[[counter]]$ForecastedSeries$upper[1:fcstHorizen])){
+      yAxisMax <- max(inputForecastsList[[counter]]$ForecastedSeries$upper[1:fcstHorizen]) +
+        (1-rngMultiplier)*max(inputForecastsList[[counter]]$ForecastedSeries$upper[1:fcstHorizen]);
+    }else{
+      yAxisMax <- max(inputForecastsList[[counter]]$ForecastedSeries$x) 
+      + (1-rngMultiplier)*max(inputForecastsList[[counter]]$ForecastedSeries$x);
+    }
+    
+    png(fileLocation);
+    cht <- autoplot(inputForecastsList[[counter]]$ForecastedSeries, las=1,
+                    #main=paste(mainTitleLeadingString, inputForecastsList[[counter]]$Stream), 
+                    main=paste(""),
+                    xlab=tsFreqString, ylab=paste(measurementUnitTypeString, measurementUnitString, sep = " "), cex.axis=0.75);
+    cht <-  cht + xlim(c(xAxisMin,xAxisMax)) + ylim(c(yAxisMin,yAxisMax));
+    ctList[[counter]] <- cht;
+    print(cht);#printing into the plots display window is required so as to allow the storing of the plot object
+    dev.off();#captures the chart in the plots display window and then clears the window
+    #assign(paste(savePath,inputForecastsList[[counter]]$Stream,measurementUnitTypeString,sep=""), (dtList[[counter]]));
+    counter <- counter + 1;
+  }
+  
+  return(ctList);
+}
+
+
+##This function is used to remove (or set to zero) all point forecasts after the forecast horizen
+##It is needed because including the dummy variable causes forecasts to be generated for a period equaling the length of
+##the time sereis being forecasted 
+removeForecastsAfterHorizen <- function(inputForecastsList, fcstHorizen){
+  
+  counter = 1;#counter to index each element of the inputForecastsList
+  
+  #loop through each element of the inputForecastsList and for each point forecast and lower and upper bound set to zero
+  while(counter<=length(inputForecastsList)){
+    startIndex <- fcstHorizen + 1;#initialise the start index to that of the index imediately after the forecast horizen
+    while(startIndex<=length(inputForecastsList[[counter]]$ForecastedSeries$mean)){
+      inputForecastsList[[counter]]$ForecastedSeries$mean[startIndex] <- NA;
+      inputForecastsList[[counter]]$ForecastedSeries$lower[startIndex] <- 0;
+      inputForecastsList[[counter]]$ForecastedSeries$upper[startIndex] <- 0;
+      startIndex <- startIndex + 1; # increment the index and repeat
+    }    
+    counter <- counter + 1;#increment the counter and repeat until inputForecastsList is exhasted
+  }
+  return(inputForecastsList);
+}
+
