@@ -1,0 +1,8 @@
+streamID,StreamDescription,StreamType
+MT103,Customer Payment,Payment
+MT205,Inter-Financial Institution Payment,Payment
+MT096,Partial Message set to LVTS by S.W.I.F.T,Message
+MT097,Message from LVTS to S.W.I.F.T. containing results of payment disposition,Message
+MT012,Acceptance Notification,Message
+MT019,Rejection Notification,Message
+,Unidentified Test or Bank of Canada Sent,Payment
